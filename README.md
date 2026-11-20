@@ -1,16 +1,30 @@
-# ClaimSnap — car-damage triage (prototype)
+# ClaimSnap — AI-assisted car-damage triage
 
 Everything runs in the browser. Photos are never uploaded.
 
+**Live demo:** enable GitHub Pages on this repo (Settings → Pages → Deploy from
+branch `main` / root) and it serves at
+`https://wajidi0042-netizen.github.io/claimsnap/`.
+
+| Page | What it is |
+|---|---|
+| `index.html` | Landing page — product pitch, headline numbers, links to the rest |
+| `new-claim.html` | The live tool — upload a photo, run the full pipeline end to end |
+| `queue.html` | Claims Queue — every claim triaged on this device, as a case list |
+| `dashboard.html` | Performance — the model's accuracy across the full test set |
+| `nav.js` | Shared top nav injected on every page |
+
 ```
-index.html      UI
-app.js          pipeline: segment -> severity -> describe -> cross-check
+app.js          pipeline: segment -> severity -> describe -> cross-check -> save to queue
 seg.js          YOLO11n-seg decoding (boxes, per-class NMS, mask prototypes)
 severity.js     damage mask area / car mask area -> minor | moderate | severe
 vlm.js          SmolVLM-256M-Instruct via Transformers.js (WebGPU, wasm fallback)
 crosscheck.js   checks every model statement against the segmentation output
-models/         best.onnx + car-seg.onnx  (not in git — see below)
+models/         best.onnx + car-seg.onnx
 ```
+
+The Claims Queue is stored in `localStorage` only — nothing is sent to a
+server, and clearing browser data clears the queue.
 
 ## Models
 
@@ -36,9 +50,13 @@ Then open `http://localhost:8000`.
 
 ## Deploy
 
-A Hugging Face **Static** Space: upload `index.html`, the four `.js` files and
-`models/`. Transformers.js pulls SmolVLM from the Hub on first use (~200 MB,
-cached by the browser afterwards).
+**GitHub Pages** (simplest — same repo): Settings → Pages → Source → Deploy
+from a branch → `main`, `/ (root)` → Save. No build step; every file here is
+served as-is.
+
+**Hugging Face Static Space** (alternative): upload all the `.html`/`.js`
+files and `models/`. Transformers.js pulls SmolVLM from the Hub on first use
+(~200 MB, cached by the browser afterwards).
 
 **Licence:** CarDD is licensed for research use and must not be redistributed.
 Put no CarDD image, annotation file or archive in the Space — only the trained

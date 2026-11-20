@@ -3,111 +3,130 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClaimSnap</title>
+<title>ClaimSnap — AI-assisted car-damage triage</title>
+<meta name="description" content="ClaimSnap outlines car damage, scores severity, and drafts a verified claim description — entirely in the browser.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root{
-    --bg:#f6f7f9; --panel:#fff; --ink:#15181d; --muted:#5d6672; --line:#e3e6ea;
-    --accent:#1f6feb; --ok:#0f7b4f; --warn:#b4690e; --bad:#b42318;
-    --minor:#0f7b4f; --moderate:#b4690e; --severe:#b42318;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#0e1116; --panel:#161a20; --ink:#e8ebef; --muted:#9aa4b1; --line:#262c35;
-      --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
-      --minor:#3fb950; --moderate:#d29922; --severe:#f85149;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#0e1116; --panel:#161a20; --ink:#e8ebef; --muted:#9aa4b1; --line:#262c35;
-    --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
-    --minor:#3fb950; --moderate:#d29922; --severe:#f85149;
+    --bg:#0b0f15; --bg2:#141b24; --bg3:#1b232e;
+    --ink:#eaeef4; --muted:#93a1b2; --faint:#64717f;
+    --line:#242e3a; --line2:#32404f;
+    --accent:#e8a33d; --accent2:#4da3ff; --ok:#3fb573; --bad:#e05252;
+    --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
-  header{padding:20px 16px 8px;max-width:1040px;margin:0 auto}
-  h1{font-size:20px;margin:0 0 4px}
-  .sub{color:var(--muted);font-size:13px;margin:0}
-  main{max-width:1040px;margin:0 auto;padding:16px}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
-  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-  button,label.btn{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--line);
-    background:var(--panel);color:var(--ink);cursor:pointer}
-  button.primary{background:var(--accent);border-color:transparent;color:#fff}
-  button[disabled]{opacity:.5;cursor:not-allowed}
-  #status{font-size:13px;color:var(--muted);margin-top:10px;min-height:1.4em}
-  #status.err{color:var(--bad)}
-  canvas{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);display:block}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-  .sev{font-weight:600}
-  .sev.minor{color:var(--minor)} .sev.moderate{color:var(--moderate)} .sev.severe{color:var(--severe)}
-  .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
-  .claim{border-left:3px solid var(--line);padding:6px 10px;margin:6px 0;font-size:14px}
-  .claim.ok{border-left-color:var(--ok)}
-  .claim.flag{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
-  .tag{font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
-  .tag.ok{color:var(--ok)} .tag.flag{color:var(--bad)}
-  pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;
-      overflow:auto;font-size:12.5px;white-space:pre-wrap}
-  .metrics{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-  .metrics b{color:var(--ink);font-variant-numeric:tabular-nums}
-  .hide{display:none}
-  .note{font-size:12.5px;color:var(--muted);margin-top:10px}
-  h2{font-size:15px;margin:0 0 10px}
-  @media (max-width:640px){ main,header{padding-left:16px;padding-right:16px} }
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+  .hero{padding:72px 0 56px;text-align:center}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 16px}
+  h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,6vw,58px);
+    letter-spacing:-.03em;line-height:1.03;margin:0 0 18px}
+  h1 span{color:var(--accent)}
+  .lede{max-width:620px;margin:0 auto;color:var(--muted);font-size:16.5px;line-height:1.6}
+  .cta{display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+  .btn{font-family:var(--body);font-weight:600;font-size:14.5px;padding:12px 22px;border-radius:9px;
+    text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:transform .12s}
+  .btn:hover{transform:translateY(-1px)}
+  .btn.primary{background:var(--accent);color:#1a1206}
+  .btn.ghost{background:var(--bg3);color:var(--ink);border:1px solid var(--line2)}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:40px 0 56px}
+  @media (max-width:860px){ .cards{grid-template-columns:1fr} .hero{padding:48px 0 36px} }
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px;
+    text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:10px;min-height:190px}
+  .card:hover{border-color:var(--line2);background:var(--bg3)}
+  .card .num{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .card h3{font-family:var(--display);font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em}
+  .card p{color:var(--muted);font-size:13.5px;margin:0;flex:1}
+  .card .stat{font-family:var(--mono);font-size:12.5px;color:var(--accent2);margin-top:auto;
+    padding-top:10px;border-top:1px solid var(--line)}
+
+  .strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:56px}
+  @media (max-width:760px){ .strip{grid-template-columns:repeat(2,1fr)} }
+  .cell{background:var(--bg2);padding:18px 16px}
+  .cell b{display:block;font-family:var(--display);font-size:21px;color:var(--ink)}
+  .cell span{display:block;font-size:11.5px;color:var(--faint);margin-top:4px;line-height:1.35}
+
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:56px}
+  @media (max-width:860px){ .steps{grid-template-columns:repeat(2,1fr)} }
+  .step{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .step i{font-family:var(--mono);font-size:11px;color:var(--accent)}
+  .step h4{font-family:var(--display);font-size:14px;margin:8px 0 6px}
+  .step p{color:var(--muted);font-size:12.5px;margin:0}
+
+  footer{border-top:1px solid var(--line);padding:24px 0 48px;color:var(--faint);font-size:12.5px}
+  footer a{color:var(--muted)}
+  .foot-row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </style>
 </head>
 <body>
-<header>
-  <h1>ClaimSnap</h1>
-  <p class="sub">Car-damage triage for motor claims — prototype. Everything runs on this device; photos are never uploaded.</p>
-</header>
+<script src="nav.js"></script>
 
-<main>
-  <div class="panel">
-    <div class="row">
-      <label class="btn">Choose photo<input type="file" id="file" accept="image/*" class="hide" disabled></label>
-      <label class="row" style="gap:6px;font-size:13px;color:var(--muted)">
-        <input type="checkbox" id="useVlm" checked> Write a description with the vision-language model
-      </label>
+<div class="wrap">
+  <section class="hero">
+    <p class="kicker">Motor insurance &middot; first-review triage</p>
+    <h1>Outline the damage.<br>Score the <span>severity</span>.<br>Verify the story.</h1>
+    <p class="lede">ClaimSnap speeds up the first review of a car-damage claim photo — it never
+      approves, denies, or prices a claim. Every model runs on-device, in the browser; photos
+      are never uploaded anywhere.</p>
+    <div class="cta">
+      <a class="btn primary" href="new-claim.html">Try a new claim →</a>
+      <a class="btn ghost" href="dashboard.html">See the performance report</a>
     </div>
-    <div id="status">Loading the segmentation model…</div>
+  </section>
+
+  <div class="strip">
+    <div class="cell"><b>0.734</b><span>test-set mask mAP50</span></div>
+    <div class="cell"><b>61.6%</b><span>fine-tuned recall vs 5.6% zero-shot</span></div>
+    <div class="cell"><b>84%</b><span>severity agreement within one level</span></div>
+    <div class="cell"><b>65.7%</b><span>unsupported VLM claims caught by cross-check</span></div>
+    <div class="cell"><b>0</b><span>server calls for a customer photo</span></div>
   </div>
 
-  <div class="panel hide" id="resultPanel">
-    <h2>Detected damage</h2>
-    <canvas id="out"></canvas>
-    <div id="detTableWrap" style="margin-top:14px"></div>
-    <div class="metrics" id="metrics" style="margin-top:12px"></div>
-    <p class="note">Severity is the damage mask area as a share of the detected car area. It is an area measure only —
-      it is not a repair cost and not a claim decision.</p>
+  <div class="cards">
+    <a class="card" href="new-claim.html">
+      <span class="num">01</span>
+      <h3>New Claim</h3>
+      <p>Upload a photo. Watch it get segmented, scored, described by a vision-language model,
+        and verified — live, end to end.</p>
+      <span class="stat">→ detect · measure · describe · verify</span>
+    </a>
+    <a class="card" href="queue.html">
+      <span class="num">02</span>
+      <h3>Claims Queue</h3>
+      <p>Every claim you triage is kept on this device, with its severity and a one-line summary
+        — the case-list view a handler would actually work from.</p>
+      <span class="stat">→ saved locally, never sent anywhere</span>
+    </a>
+    <a class="card" href="dashboard.html">
+      <span class="num">03</span>
+      <h3>Performance</h3>
+      <p>The same pipeline's accuracy across the full CarDD test set — by damage class, against
+        a zero-shot baseline, and against human severity ratings.</p>
+      <span class="stat">→ 374 held-out test photos</span>
+    </a>
   </div>
 
-  <div class="panel hide" id="vlmPanel">
-    <h2>Draft description, cross-checked</h2>
-    <div id="claims"></div>
-    <div id="hallu" class="metrics" style="margin-top:12px"></div>
-    <details style="margin-top:12px">
-      <summary style="cursor:pointer;font-size:13px;color:var(--muted)">Raw model output</summary>
-      <pre id="rawVlm"></pre>
-    </details>
+  <div class="steps">
+    <div class="step"><i>1</i><h4>Detect damage</h4><p>YOLO11n-seg, fine-tuned on CarDD, outlines each region.</p></div>
+    <div class="step"><i>2</i><h4>Find the car</h4><p>A second COCO model locates the car for scale.</p></div>
+    <div class="step"><i>3</i><h4>Score severity</h4><p>Damaged area ÷ car area, by data-driven thresholds.</p></div>
+    <div class="step"><i>4</i><h4>Draft a note</h4><p>A small vision-language model writes a description.</p></div>
+    <div class="step"><i>5</i><h4>Verify it</h4><p>Every sentence is checked against the detections.</p></div>
   </div>
 
-  <div class="panel hide" id="summaryPanel">
-    <h2>Send to adjuster</h2>
-    <pre id="summary"></pre>
-    <div class="row">
-      <button id="copy">Copy summary</button>
-      <button id="download">Download JSON</button>
+  <footer>
+    <div class="foot-row">
+      <span>ClaimSnap is a first-review aid, not a decision-maker. A human adjuster decides every claim.</span>
+      <span><a href="https://github.com/wajidi0042-netizen/claimsnap" target="_blank" rel="noopener">Source on GitHub ↗</a></span>
     </div>
-    <p class="note">A human adjuster decides the claim. This tool neither approves nor denies, and photographs can be
-      edited or duplicated — treat the output as a first read only.</p>
-  </div>
-</main>
-
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
-<script type="module" src="app.js"></script>
+  </footer>
+</div>
 </body>
 </html>

@@ -294,8 +294,45 @@ function renderSummary() {
     'For first review only. No claim is approved or denied by this tool. Severity is an area',
     'measure, not a repair estimate. Photographs may be edited, reused or duplicated.');
 
-  $('summary').textContent = lines.join('\n');
+  const summaryText = lines.join('\n');
+  $('summary').textContent = summaryText;
   $('summaryPanel').classList.remove('hide');
+  saveClaim(r, summaryText);
+}
+
+// ---------------------------------------------------------------- claims queue
+// Every triaged photo is kept on this device only (localStorage), so the
+// Claims Queue page has a case list to work from instead of one photo at a
+// time. Nothing here is ever sent anywhere.
+
+const QUEUE_KEY = 'claimsnap_claims';
+const QUEUE_MAX = 40;
+
+function thumbnail(maxW = 220) {
+  const src = $('out');
+  if (!src || !src.width) return null;
+  const scale = Math.min(1, maxW / src.width);
+  const t = document.createElement('canvas');
+  t.width = Math.round(src.width * scale);
+  t.height = Math.round(src.height * scale);
+  t.getContext('2d').drawImage(src, 0, 0, t.width, t.height);
+  try { return t.toDataURL('image/jpeg', 0.6); } catch { return null; }
+}
+
+function saveClaim(report, summaryText) {
+  let queue;
+  try { queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { queue = []; }
+  queue.unshift({
+    file: report.file,
+    generated: report.generated,
+    overall_severity: report.overall_severity,
+    car_located: report.car_located,
+    detections: report.detections,
+    thumb: thumbnail(),
+    summaryText,
+  });
+  if (queue.length > QUEUE_MAX) queue.length = QUEUE_MAX;
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch { /* storage full — skip silently */ }
 }
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

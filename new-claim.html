@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClaimSnap — New Claim</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --ink:#15181d; --muted:#5d6672; --line:#e3e6ea;
+    --accent:#1f6feb; --ok:#0f7b4f; --warn:#b4690e; --bad:#b42318;
+    --minor:#0f7b4f; --moderate:#b4690e; --severe:#b42318;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0e1116; --panel:#161a20; --ink:#e8ebef; --muted:#9aa4b1; --line:#262c35;
+      --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+      --minor:#3fb950; --moderate:#d29922; --severe:#f85149;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1116; --panel:#161a20; --ink:#e8ebef; --muted:#9aa4b1; --line:#262c35;
+    --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+    --minor:#3fb950; --moderate:#d29922; --severe:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  header{padding:20px 16px 8px;max-width:1040px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0}
+  main{max-width:1040px;margin:0 auto;padding:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  button,label.btn{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);cursor:pointer}
+  button.primary{background:var(--accent);border-color:transparent;color:#fff}
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  #status{font-size:13px;color:var(--muted);margin-top:10px;min-height:1.4em}
+  #status.err{color:var(--bad)}
+  canvas{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);display:block}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .sev{font-weight:600}
+  .sev.minor{color:var(--minor)} .sev.moderate{color:var(--moderate)} .sev.severe{color:var(--severe)}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .claim{border-left:3px solid var(--line);padding:6px 10px;margin:6px 0;font-size:14px}
+  .claim.ok{border-left-color:var(--ok)}
+  .claim.flag{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+  .tag{font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+  .tag.ok{color:var(--ok)} .tag.flag{color:var(--bad)}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;
+      overflow:auto;font-size:12.5px;white-space:pre-wrap}
+  .metrics{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .metrics b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .hide{display:none}
+  .note{font-size:12.5px;color:var(--muted);margin-top:10px}
+  h2{font-size:15px;margin:0 0 10px}
+  @media (max-width:640px){ main,header{padding-left:16px;padding-right:16px} }
+</style>
+</head>
+<body>
+<script src="nav.js"></script>
+<header>
+  <h1>New claim</h1>
+  <p class="sub">Upload a photo to triage it — detect damage, score severity, draft and verify a description. Everything runs on this device; photos are never uploaded.</p>
+</header>
+
+<main>
+  <div class="panel">
+    <div class="row">
+      <label class="btn">Choose photo<input type="file" id="file" accept="image/*" class="hide" disabled></label>
+      <label class="row" style="gap:6px;font-size:13px;color:var(--muted)">
+        <input type="checkbox" id="useVlm" checked> Write a description with the vision-language model
+      </label>
+    </div>
+    <div id="status">Loading the segmentation model…</div>
+  </div>
+
+  <div class="panel hide" id="resultPanel">
+    <h2>Detected damage</h2>
+    <canvas id="out"></canvas>
+    <div id="detTableWrap" style="margin-top:14px"></div>
+    <div class="metrics" id="metrics" style="margin-top:12px"></div>
+    <p class="note">Severity is the damage mask area as a share of the detected car area. It is an area measure only —
+      it is not a repair cost and not a claim decision.</p>
+  </div>
+
+  <div class="panel hide" id="vlmPanel">
+    <h2>Draft description, cross-checked</h2>
+    <div id="claims"></div>
+    <div id="hallu" class="metrics" style="margin-top:12px"></div>
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;font-size:13px;color:var(--muted)">Raw model output</summary>
+      <pre id="rawVlm"></pre>
+    </details>
+  </div>
+
+  <div class="panel hide" id="summaryPanel">
+    <h2>Send to adjuster</h2>
+    <pre id="summary"></pre>
+    <div class="row">
+      <button id="copy">Copy summary</button>
+      <button id="download">Download JSON</button>
+    </div>
+    <p class="note">A human adjuster decides the claim. This tool neither approves nor denies, and photographs can be
+      edited or duplicated — treat the output as a first read only.</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

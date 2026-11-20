@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ClaimSnap Evaluation</title>
+<title>ClaimSnap — Performance</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -145,12 +145,13 @@ tr.tot td{border-bottom:0;border-top:1px solid var(--line2);font-weight:600}
 
 </head>
 <body>
+<script src="nav.js"></script>
 
 <div class="wrap">
 
 <header>
   <div>
-    <h1>ClaimSnap Evaluation</h1>
+    <h1>Performance</h1>
     <p class="sub">Instance segmentation of car damage for motor-claim triage. Every figure below is measured
       on the held-out CarDD test split — 374 images the model never saw in training.</p>
   </div>
@@ -272,23 +273,23 @@ tr.tot td{border-bottom:0;border-top:1px solid var(--line2);font-weight:600}
   </div>
 </section>
 
-<!-- still open ----------------------------------------------------------- -->
+<!-- now measured -------------------------------------------------------- -->
 <section class="tiles">
-  <div class="tile pend"><span class="lbl">Severity agreement</span><span class="v">not yet run</span>
-    <span class="n">50 hand-rated images</span></div>
-  <div class="tile pend"><span class="lbl">Hallucination rate</span><span class="v">not yet run</span>
-    <span class="n">50 descriptions, measured</span></div>
-  <div class="tile pend"><span class="lbl">Zero-shot pre-labelling</span><span class="v">not yet run</span>
-    <span class="n">open-vocabulary + SAM</span></div>
-  <div class="tile pend"><span class="lbl">In-browser time</span><span class="v">not yet run</span>
-    <span class="n">measured on deployment</span></div>
+  <div class="tile warn"><span class="lbl">Severity agreement</span><span class="v">48<small>% exact</small></span>
+    <span class="n">84% within one level · κ 0.27 · 50 hand-rated images</span></div>
+  <div class="tile warn"><span class="lbl">Hallucination rate</span><span class="v">65.7<small>%</small></span>
+    <span class="n">before cross-check · 0% after · 50 descriptions</span></div>
+  <div class="tile good"><span class="lbl">Zero-shot pre-labelling</span><span class="v">5.6<small>% → 61.6%</small></span>
+    <span class="n">open-vocab + SAM, vs fine-tuned recall</span></div>
+  <div class="tile good"><span class="lbl">In-browser time</span><span class="v">~200<small> ms</small></span>
+    <span class="n">segmentation, CPU, measured on deployment</span></div>
 </section>
 
 <p class="src">Source: <span class="m">yolo val task=segment split=test</span>, Ultralytics 8.4.215,
   YOLO11n-seg fine-tuned 50 epochs at 640 px, batch 16, on a Tesla T4. Overall box mAP50 0.743 ·
-  box mAP50-95 0.584 · mask precision 0.770 · mask recall 0.682. Dashed tiles are measurements the
-  notebook is set up to produce but which have not been run; they are shown empty rather than estimated.
-  Dataset: CarDD (Wang, Li &amp; Wu, IEEE T-ITS 24(7):7202–7214, 2023).</p>
+  box mAP50-95 0.584 · mask precision 0.770 · mask recall 0.682. Severity agreement and hallucination
+  rate are measured against 50 hand-labelled test photos; zero-shot pre-labelling against 80 test
+  photos with YOLO-World + MobileSAM. Dataset: CarDD (Wang, Li &amp; Wu, IEEE T-ITS 24(7):7202–7214, 2023).</p>
 
 </div>
 
