@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ClaimSnap Evaluation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dark instrument panel — summary tiles, then one large switchable
+   chart, then the live tools; amber chrome, the app's six class colours for data. */
+:root{
+  color-scheme: dark;
+  --bg:#0b0f15; --bg2:#141b24; --bg3:#1b232e; --bg4:#222c38;
+  --ink:#eaeef4; --muted:#93a1b2; --faint:#64717f;
+  --line:#242e3a; --line2:#32404f;
+  --accent:#e8a33d; --accent2:#4da3ff;
+  --ok:#3fb573; --warn:#d9a21b; --bad:#e05252;
+  --dent:#ff8c00; --scratch:#ffd54a; --crack:#f0526a;
+  --glass:#3d9bff; --lamp:#b06cf7; --tire:#1ec98a;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:26px 48px}
+
+header{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:22px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,40px);letter-spacing:-.025em;
+   line-height:1.02;margin:0}
+.sub{color:var(--muted);font-size:13.5px;margin:5px 0 0;max-width:62ch}
+.stamp{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right;line-height:1.7}
+h2{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0}
+h3{font-family:var(--display);font-weight:600;font-size:13.5px;margin:0}
+p{margin:0}
+.lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
+
+section{margin-bottom:18px}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:17px;min-width:0}
+.head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:15px}
+.head .lbl{margin-left:auto}
+
+/* ---- tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
+.tile{background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:15px 16px;
+      display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.tile.good::before{background:var(--ok)} .tile.warn::before{background:var(--warn)}
+.tile.pend::before{background:var(--line2)}
+.tile .v{font-family:var(--display);font-weight:700;font-size:clamp(27px,3.6vw,38px);line-height:1;
+         letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tile .v small{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0}
+.tile .n{font-size:12.5px;color:var(--muted)}
+.tile.pend .v{font-size:19px;color:var(--faint)}
+
+/* ---- controls */
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px}
+.seg button{font-family:var(--mono);font-size:11.5px;color:var(--muted);background:none;border:0;
+            padding:6px 11px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#1a1206;font-weight:500}
+.seg button:focus-visible{outline:2px solid var(--accent2);outline-offset:1px}
+
+/* ---- bar chart */
+.chart{display:flex;flex-direction:column;gap:3px}
+.row{display:grid;grid-template-columns:118px 1fr 62px;gap:12px;align-items:center;
+     padding:7px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.row:hover{background:var(--bg3)}
+.row[aria-selected="true"]{background:var(--bg3);border-color:var(--line2)}
+.row:focus-visible{outline:2px solid var(--accent2);outline-offset:-1px}
+.row .nm{display:flex;align-items:center;gap:8px;font-size:13.5px;min-width:0}
+.sw{width:10px;height:10px;border-radius:3px;flex:none}
+.track{height:22px;border-radius:6px;background:var(--bg);position:relative;overflow:hidden}
+.fill{position:absolute;inset:0 auto 0 0;border-radius:6px;width:0;transition:width .65s cubic-bezier(.2,.8,.2,1)}
+.ghost{position:absolute;inset:0 auto 0 0;border-radius:6px;width:0;opacity:.26;transition:width .65s cubic-bezier(.2,.8,.2,1)}
+.row .val{font-family:var(--mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.axis{display:grid;grid-template-columns:118px 1fr 62px;gap:12px;margin-top:6px}
+.ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.gridlines{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
+.gridlines i{width:1px;background:var(--line)}
+
+/* ---- detail */
+.detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:11px;margin-top:4px}
+.kv{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 11px;min-width:0}
+.kv .k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.kv .v{font-family:var(--mono);font-size:17px;font-variant-numeric:tabular-nums;margin-top:3px}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.three{display:grid;grid-template-columns:1.1fr .95fr .95fr;gap:16px}
+
+/* ---- stacked speed bar */
+.stack{display:flex;height:30px;border-radius:8px;overflow:hidden;background:var(--bg)}
+.stack div{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;
+           color:#0b0f15;font-weight:500;min-width:0;overflow:hidden;white-space:nowrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:11px;font-size:12.5px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+
+/* ---- severity tool */
+.sev-wrap{display:flex;flex-direction:column;gap:13px}
+input[type=range]{width:100%;accent-color:var(--accent);height:22px}
+.band{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;
+      font-size:22px;letter-spacing:-.01em}
+.dot{width:11px;height:11px;border-radius:50%}
+.sevbar{display:flex;height:9px;border-radius:5px;overflow:hidden;background:var(--bg);position:relative}
+.sevbar i{display:block;height:100%}
+.marker{position:absolute;top:-4px;width:2px;height:17px;background:var(--ink);border-radius:1px;
+        transition:left .18s;box-shadow:0 0 0 2px var(--bg2)}
+
+/* ---- cross-check tool */
+.claim{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-radius:9px;
+       background:var(--bg);border-left:3px solid var(--line2);font-size:13.5px}
+.claim.ok{border-left-color:var(--ok)} .claim.flag{border-left-color:var(--bad)}
+.claim .tg{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+           padding-top:3px;white-space:nowrap}
+.claim.ok .tg{color:var(--ok)} .claim.flag .tg{color:var(--bad)}
+.claim .why{color:var(--muted);font-size:12px;display:block}
+.toggles{display:flex;flex-direction:column;gap:7px}
+.tg-row{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:7px 10px;background:var(--bg);
+        border:1px solid var(--line);border-radius:9px;cursor:pointer}
+.tg-row:hover{border-color:var(--line2)}
+.tg-row input{accent-color:var(--accent);width:15px;height:15px;flex:none}
+.tg-row .mt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto;white-space:nowrap}
+
+.src{font-size:11.5px;color:var(--faint);font-family:var(--mono);line-height:1.65;margin-top:13px}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:7px 9px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+   font-weight:500}
+td.m{font-family:var(--mono)}
+tr.tot td{border-bottom:0;border-top:1px solid var(--line2);font-weight:600}
+
+@media (max-width:900px){
+  .two,.three{grid-template-columns:1fr}
+  .row,.axis{grid-template-columns:96px 1fr 54px}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>ClaimSnap Evaluation</h1>
+    <p class="sub">Instance segmentation of car damage for motor-claim triage. Every figure below is measured
+      on the held-out CarDD test split — 374 images the model never saw in training.</p>
+  </div>
+  <div class="stamp">YOLO11n-seg · 2,850,682 params<br>Ultralytics 8.4.215 · Tesla T4<br>374 test images · 785 instances</div>
+</header>
+
+<!-- headline ------------------------------------------------------------ -->
+<section class="tiles">
+  <div class="tile good"><span class="lbl">Mask mAP50</span><span class="v">0.734</span>
+    <span class="n">all six damage types</span></div>
+  <div class="tile"><span class="lbl">Mask mAP50-95</span><span class="v">0.541</span>
+    <span class="n">the strict average</span></div>
+  <div class="tile good"><span class="lbl">Throughput</span><span class="v">102<small> img/s</small></span>
+    <span class="n">9.8 ms end to end on a T4</span></div>
+  <div class="tile"><span class="lbl">Model on the wire</span><span class="v">11.7<small> MB</small></span>
+    <span class="n">ONNX · runs in the browser</span></div>
+</section>
+
+<!-- main chart ----------------------------------------------------------- -->
+<section class="panel">
+  <div class="head">
+    <h2>Performance by damage type</h2>
+    <div class="seg" id="metricSeg" role="group" aria-label="Metric">
+      <button data-m="ap" aria-pressed="true">mAP50-95</button>
+      <button data-m="ap50" aria-pressed="false">mAP50</button>
+      <button data-m="p" aria-pressed="false">precision</button>
+      <button data-m="r" aria-pressed="false">recall</button>
+    </div>
+    <div class="seg" id="taskSeg" role="group" aria-label="Task">
+      <button data-t="mask" aria-pressed="true">mask</button>
+      <button data-t="box" aria-pressed="false">box</button>
+    </div>
+    <span class="lbl" id="chartHint">click a class for detail</span>
+  </div>
+
+  <div class="chart" id="chart"></div>
+  <div class="axis">
+    <span></span>
+    <div class="ticks"><span>0</span><span>0.25</span><span>0.50</span><span>0.75</span><span>1.00</span></div>
+    <span></span>
+  </div>
+
+  <div id="detail" style="margin-top:17px"></div>
+  <p class="src" id="chartSrc"></p>
+</section>
+
+<!-- split + speed -------------------------------------------------------- -->
+<section class="three">
+  <div class="panel">
+    <div class="head"><h2>Where the model is weak</h2></div>
+    <table>
+      <thead><tr><th>class</th><th>instances</th><th>mask mAP50-95</th><th>recall</th></tr></thead>
+      <tbody id="weakTable"></tbody>
+    </table>
+    <p class="note" id="weakNote"></p>
+  </div>
+
+  <div class="panel">
+    <div class="head"><h2>Time per image</h2></div>
+    <div class="stack" id="speedStack"></div>
+    <div class="legend" id="speedLegend"></div>
+    <p class="note">Measured on a Tesla T4 at 640 px. In the browser on CPU through ONNX Runtime Web the same
+      graph takes about 200 ms, which is the figure that matters for the deployed app.</p>
+  </div>
+
+  <div class="panel">
+    <div class="head"><h2>Dataset</h2></div>
+    <div class="chart" id="splitChart"></div>
+    <p class="note">4,000 images and 8,740 hand-drawn masks. Licensed for research use by the PIC Lab,
+      Chinese Academy of Sciences; not redistributed with this project.</p>
+  </div>
+</section>
+
+<!-- live tools ----------------------------------------------------------- -->
+<section class="two">
+  <div class="panel">
+    <div class="head"><h2>Severity calculator</h2><span class="lbl">live</span></div>
+    <div class="sev-wrap">
+      <p class="note" style="margin:0">Severity is the damage mask area as a share of the detected car area.
+        Drag to see where the bands fall.</p>
+      <svg viewBox="0 0 320 150" style="width:100%;height:auto;background:var(--bg);border-radius:10px;
+           border:1px solid var(--line)" role="img" aria-label="Damage area against car area">
+        <rect x="10" y="30" width="300" height="100" rx="14" fill="#1b232e" stroke="#32404f"/>
+        <text x="20" y="24" font-family="IBM Plex Mono, monospace" font-size="10" fill="#64717f">CAR AREA</text>
+        <ellipse id="sevBlob" cx="160" cy="80" rx="10" ry="6" fill="#ff8c00" opacity=".85"/>
+      </svg>
+      <input type="range" id="sevRange" min="0" max="250" value="45" step="1"
+             aria-label="Damage share of car area, tenths of a percent">
+      <div class="sevbar">
+        <i style="width:20%;background:var(--ok)"></i>
+        <i style="width:80%;background:var(--warn)"></i>
+        <i style="width:0;background:var(--bad)" id="sevSevere"></i>
+        <span class="marker" id="sevMarker"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="band" id="sevBand"></span>
+        <span class="lbl" id="sevPct" style="font-size:13px;color:var(--muted);letter-spacing:0;text-transform:none"></span>
+      </div>
+      <p class="note" style="margin:0">Bands: minor under 2% · moderate 2–10% · severe over 10%. Starting
+        values, to be confirmed against 50 hand-rated images.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="head"><h2>Hallucination check</h2><span class="lbl">live</span></div>
+    <p class="note" style="margin:0 0 12px">The segmenter found a <strong style="color:var(--dent)">dent
+      (moderate)</strong> and <strong style="color:var(--glass)">glass shatter (severe)</strong>. Tick what
+      the language model claims, and watch which statements survive.</p>
+    <div class="toggles" id="claimToggles"></div>
+    <div style="display:flex;gap:11px;margin:14px 0 11px;flex-wrap:wrap">
+      <div class="kv" style="flex:1"><span class="k">statements</span><span class="v" id="ccTotal">0</span></div>
+      <div class="kv" style="flex:1"><span class="k">flagged</span><span class="v" id="ccFlag" style="color:var(--bad)">0</span></div>
+      <div class="kv" style="flex:1"><span class="k">rate</span><span class="v" id="ccRate">0%</span></div>
+    </div>
+    <div class="toggles" id="ccOut"></div>
+    <p class="note">Flagged statements are shown to the handler and left out of the summary, so the rate after
+      cross-checking is 0% by construction. The number worth reporting is the one above: how much had to be
+      removed.</p>
+  </div>
+</section>
+
+<!-- still open ----------------------------------------------------------- -->
+<section class="tiles">
+  <div class="tile pend"><span class="lbl">Severity agreement</span><span class="v">not yet run</span>
+    <span class="n">50 hand-rated images</span></div>
+  <div class="tile pend"><span class="lbl">Hallucination rate</span><span class="v">not yet run</span>
+    <span class="n">50 descriptions, measured</span></div>
+  <div class="tile pend"><span class="lbl">Zero-shot pre-labelling</span><span class="v">not yet run</span>
+    <span class="n">open-vocabulary + SAM</span></div>
+  <div class="tile pend"><span class="lbl">In-browser time</span><span class="v">not yet run</span>
+    <span class="n">measured on deployment</span></div>
+</section>
+
+<p class="src">Source: <span class="m">yolo val task=segment split=test</span>, Ultralytics 8.4.215,
+  YOLO11n-seg fine-tuned 50 epochs at 640 px, batch 16, on a Tesla T4. Overall box mAP50 0.743 ·
+  box mAP50-95 0.584 · mask precision 0.770 · mask recall 0.682. Dashed tiles are measurements the
+  notebook is set up to produce but which have not been run; they are shown empty rather than estimated.
+  Dataset: CarDD (Wang, Li &amp; Wu, IEEE T-ITS 24(7):7202–7214, 2023).</p>
+
+</div>
+
+<script>
+/* ------------------------------------------------------------- measured data */
+const C = [
+  { n:'dent',          c:'--dent',    img:157, inst:236,
+    mask:{ap:0.336,ap50:0.638,p:0.692,r:0.572}, box:{ap:0.375,ap50:0.635,p:0.687,r:0.568} },
+  { n:'scratch',       c:'--scratch', img:183, inst:307,
+    mask:{ap:0.278,ap50:0.592,p:0.644,r:0.536}, box:{ap:0.346,ap50:0.611,p:0.652,r:0.542} },
+  { n:'crack',         c:'--crack',   img:48,  inst:70,
+    mask:{ap:0.164,ap50:0.438,p:0.640,r:0.371}, box:{ap:0.269,ap50:0.452,p:0.656,r:0.381} },
+  { n:'glass shatter', c:'--glass',   img:71,  inst:71,
+    mask:{ap:0.909,ap50:0.991,p:0.928,r:0.986}, box:{ap:0.921,ap50:0.991,p:0.928,r:0.986} },
+  { n:'lamp broken',   c:'--lamp',    img:65,  inst:69,
+    mask:{ap:0.691,ap50:0.851,p:0.801,r:0.783}, box:{ap:0.715,ap50:0.851,p:0.801,r:0.783} },
+  { n:'tire flat',     c:'--tire',    img:31,  inst:32,
+    mask:{ap:0.871,ap50:0.895,p:0.916,r:0.844}, box:{ap:0.877,ap50:0.920,p:0.916,r:0.844} },
+];
+const ALL = { mask:{ap:0.541,ap50:0.734,p:0.770,r:0.682}, box:{ap:0.584,ap50:0.743,p:0.773,r:0.684} };
+const LABEL = { ap:'mAP50-95', ap50:'mAP50', p:'precision', r:'recall' };
+const col = c => getComputedStyle(document.documentElement).getPropertyValue(c).trim() || '#888';
+
+let metric = 'ap', task = 'mask', picked = null;
+
+/* ------------------------------------------------------------- main chart */
+const chart = document.getElementById('chart');
+chart.innerHTML = C.map((c, i) => `
+  <div class="row" role="button" tabindex="0" data-i="${i}" aria-selected="false">
+    <span class="nm"><i class="sw" style="background:var(${c.c})"></i>${c.n}</span>
+    <div class="track">
+      <div class="gridlines"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="ghost" data-k="ghost" style="background:var(${c.c})"></div>
+      <div class="fill" data-k="fill" style="background:var(${c.c})"></div>
+    </div>
+    <span class="val" data-k="val"></span>
+  </div>`).join('');
+
+function drawChart() {
+  [...chart.children].forEach((row, i) => {
+    const c = C[i];
+    const v = c[task][metric];
+    const other = c[task === 'mask' ? 'box' : 'mask'][metric];
+    row.querySelector('[data-k=fill]').style.width = (v * 100) + '%';
+    row.querySelector('[data-k=ghost]').style.width = (other * 100) + '%';
+    row.querySelector('[data-k=val]').textContent = v.toFixed(3);
+  });
+  document.getElementById('chartSrc').textContent =
+    `Solid bar: ${task} ${LABEL[metric]}. Faint bar behind it: the same class measured as ` +
+    `${task === 'mask' ? 'box' : 'mask'}, for comparison. Overall ${task} ${LABEL[metric]} is ` +
+    `${ALL[task][metric].toFixed(3)}.`;
+}
+
+document.getElementById('metricSeg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  metric = b.dataset.m;
+  [...e.currentTarget.children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  drawChart(); if (picked !== null) showDetail(picked);
+};
+document.getElementById('taskSeg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  task = b.dataset.t;
+  [...e.currentTarget.children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  drawChart(); if (picked !== null) showDetail(picked);
+};
+
+/* ------------------------------------------------------------- class detail */
+function showDetail(i) {
+  picked = i;
+  const c = C[i];
+  [...chart.children].forEach((r, k) => r.setAttribute('aria-selected', String(k === i)));
+  document.getElementById('chartHint').textContent = 'showing ' + c.n;
+
+  const gap = (c.mask.ap50 - c.mask.ap);
+  document.getElementById('detail').innerHTML = `
+    <div class="detail">
+      <div class="kv"><span class="k">mask mAP50</span><span class="v">${c.mask.ap50.toFixed(3)}</span></div>
+      <div class="kv"><span class="k">mask mAP50-95</span><span class="v">${c.mask.ap.toFixed(3)}</span></div>
+      <div class="kv"><span class="k">precision</span><span class="v">${c.mask.p.toFixed(3)}</span></div>
+      <div class="kv"><span class="k">recall</span><span class="v">${c.mask.r.toFixed(3)}</span></div>
+      <div class="kv"><span class="k">test images</span><span class="v">${c.img}</span></div>
+      <div class="kv"><span class="k">instances</span><span class="v">${c.inst}</span></div>
+      <div class="kv"><span class="k">boundary cost</span><span class="v">${gap.toFixed(3)}</span></div>
+    </div>
+    <p class="note">${note(c, gap)}</p>`;
+}
+function note(c, gap) {
+  const hard = c.mask.ap < 0.4;
+  return `${c.n}: the model finds it at IoU 0.5 ${c.mask.ap50 >= 0.85 ? 'almost always' :
+    c.mask.ap50 >= 0.6 ? 'reliably' : 'about half the time'} (${c.mask.ap50.toFixed(3)}), but holding the
+    outline to stricter overlap costs ${gap.toFixed(3)}. ` +
+    (hard
+      ? `That gap is the whole story for this class — the damage is found, the exact extent is arguable, and
+         a nano model with 32 mask coefficients cannot trace a thin boundary.`
+      : `A tight, agreed boundary keeps the strict score high.`) +
+    ` Recall ${c.mask.r.toFixed(3)} means ${Math.round((1 - c.mask.r) * c.inst)} of its ${c.inst} test
+      instances were missed entirely.`;
+}
+chart.addEventListener('click', e => {
+  const r = e.target.closest('.row'); if (r) showDetail(+r.dataset.i);
+});
+chart.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const r = e.target.closest('.row'); if (r) { showDetail(+r.dataset.i); e.preventDefault(); }
+});
+
+/* ------------------------------------------------------------- weak table */
+const ranked = [...C].sort((a, b) => a.mask.ap - b.mask.ap);
+document.getElementById('weakTable').innerHTML = ranked.map(c => `
+  <tr><td><i class="sw" style="background:var(${c.c});display:inline-block;margin-right:7px"></i>${c.n}</td>
+    <td class="m">${c.inst}</td>
+    <td class="m" style="color:${c.mask.ap < 0.4 ? 'var(--bad)' : c.mask.ap < 0.7 ? 'var(--warn)' : 'var(--ok)'}">
+      ${c.mask.ap.toFixed(3)}</td>
+    <td class="m">${c.mask.r.toFixed(3)}</td></tr>`).join('') +
+  `<tr class="tot"><td>all classes</td><td class="m">785</td><td class="m">0.541</td><td class="m">0.682</td></tr>`;
+
+const missed = C.reduce((s, c) => s + (1 - c.mask.r) * c.inst, 0);
+document.getElementById('weakNote').textContent =
+  `Crack and scratch carry the average down: together they are ${C[1].inst + C[2].inst} of 785 test ` +
+  `instances, and both sit below 0.3. Across all classes about ${Math.round(missed)} instances are missed ` +
+  `outright. Glass, lamp and tyre have hard edges and clear extent; dent, scratch and crack do not.`;
+
+/* ------------------------------------------------------------- speed */
+const SPEED = [['preprocess', 1.6, '--accent2'], ['inference', 4.8, '--accent'], ['postprocess', 3.4, '--lamp']];
+const totalMs = SPEED.reduce((s, x) => s + x[1], 0);
+document.getElementById('speedStack').innerHTML = SPEED.map(([n, ms, c]) =>
+  `<div style="width:${ms / totalMs * 100}%;background:var(${c})" title="${n} ${ms} ms">${ms} ms</div>`).join('');
+document.getElementById('speedLegend').innerHTML = SPEED.map(([n, ms, c]) =>
+  `<span><i class="sw" style="background:var(${c})"></i>${n} · ${ms} ms</span>`).join('') +
+  `<span style="color:var(--ink);font-family:var(--mono)">total ${totalMs.toFixed(1)} ms</span>`;
+
+/* ------------------------------------------------------------- dataset split */
+const SPLIT = [['train', 2816, 6211, '--accent'], ['val', 810, 1744, '--accent2'], ['test', 374, 785, '--ok']];
+document.getElementById('splitChart').innerHTML = SPLIT.map(([n, img, inst, c]) => `
+  <div class="row" style="cursor:default;grid-template-columns:52px 1fr 92px">
+    <span class="nm" style="font-size:13px">${n}</span>
+    <div class="track" style="height:18px">
+      <div class="fill" style="width:${img / 2816 * 100}%;background:var(${c})"></div>
+    </div>
+    <span class="val" style="font-size:12px">${img.toLocaleString()}</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;
+       color:var(--faint);padding:0 8px 6px 64px"><span>${inst.toLocaleString()} masks</span>
+       <span>${(inst / img).toFixed(2)} per image</span></div>`).join('');
+
+/* ------------------------------------------------------------- severity tool */
+const range = document.getElementById('sevRange');
+const blob = document.getElementById('sevBlob');
+function band(p) { return p < 2 ? 'minor' : p < 10 ? 'moderate' : 'severe'; }
+function sevColour(b) { return b === 'minor' ? 'var(--ok)' : b === 'moderate' ? 'var(--warn)' : 'var(--bad)'; }
+function updateSev() {
+  const p = +range.value / 10;                     // 0.0 – 25.0 %
+  const b = band(p);
+  // The blob's AREA is the share of the car rectangle, so the picture cannot lie about the number.
+  const carArea = 300 * 100;
+  const rx = Math.sqrt((p / 100) * carArea / (Math.PI * 0.62));
+  blob.setAttribute('rx', Math.max(2, Math.min(148, rx)).toFixed(1));
+  blob.setAttribute('ry', Math.max(1.4, Math.min(49, rx * 0.62)).toFixed(1));
+  blob.setAttribute('fill', b === 'minor' ? col('--ok') : b === 'moderate' ? col('--warn') : col('--bad'));
+  document.getElementById('sevBand').innerHTML =
+    `<i class="dot" style="background:${sevColour(b)}"></i><span style="color:${sevColour(b)}">${b}</span>`;
+  document.getElementById('sevPct').textContent =
+    `${p.toFixed(1)}% of the car · ${Math.round(p / 100 * carArea).toLocaleString()} of 30,000 mask px`;
+  document.getElementById('sevMarker').style.left = `calc(${Math.min(100, p / 25 * 100)}% - 1px)`;
+  document.getElementById('sevSevere').style.width = '0';
+}
+range.oninput = updateSev;
+
+/* ------------------------------------------------------------- cross-check tool */
+const DETECTED = { 'dent': 'moderate', 'glass shatter': 'severe' };
+const CLAIMS = [
+  { id:'c1', t:'dent',          s:'moderate', on:true,  w:'matches a mask' },
+  { id:'c2', t:'glass shatter', s:'minor',    on:true,  w:'mask found, wrong band' },
+  { id:'c3', t:'tire flat',     s:'severe',   on:true,  w:'no such mask' },
+  { id:'c4', t:'rust',          s:null,       on:false, w:'not a trained type' },
+  { id:'c5', t:'scratch',       s:'minor',    on:false, w:'no such mask' },
+];
+document.getElementById('claimToggles').innerHTML = CLAIMS.map(c => `
+  <label class="tg-row"><input type="checkbox" id="${c.id}" ${c.on ? 'checked' : ''}>
+    <span>“${c.t}${c.s ? ', ' + c.s : ''}”</span><span class="mt">${c.w}</span></label>`).join('');
+
+function runCrossCheck() {
+  const statements = [];
+  for (const c of CLAIMS) {
+    if (!document.getElementById(c.id).checked) continue;
+    const known = Object.prototype.hasOwnProperty.call(DETECTED, c.t);
+    if (!(c.t in DETECTED) && !['dent','scratch','crack','glass shatter','lamp broken','tire flat'].includes(c.t)) {
+      statements.push([false, `Reports “${c.t}”.`, 'Not one of the six trained damage types.']);
+      continue;
+    }
+    if (!known) {
+      statements.push([false, `Reports ${c.t}.`, 'No mask of this type in the photo.']);
+      continue;
+    }
+    statements.push([true, `Reports ${c.t}.`, 'A mask of this type was found.']);
+    if (c.s) {
+      const ok = c.s === DETECTED[c.t];
+      statements.push([ok, `Calls the ${c.t} ${c.s}.`,
+        ok ? 'Matches the measured area share.' : `The measured share is ${DETECTED[c.t]}.`]);
+    }
+  }
+  const total = statements.length;
+  const flagged = statements.filter(s => !s[0]).length;
+  document.getElementById('ccTotal').textContent = total;
+  document.getElementById('ccFlag').textContent = flagged;
+  document.getElementById('ccRate').textContent = total ? Math.round(flagged / total * 100) + '%' : '—';
+  document.getElementById('ccRate').style.color =
+    !total ? 'var(--faint)' : flagged / total > 0.33 ? 'var(--bad)' : flagged ? 'var(--warn)' : 'var(--ok)';
+  document.getElementById('ccOut').innerHTML = total
+    ? statements.map(([ok, text, why]) => `
+        <div class="claim ${ok ? 'ok' : 'flag'}">
+          <span class="tg">${ok ? 'kept' : 'cut'}</span>
+          <span>${text}<span class="why">${why}</span></span></div>`).join('')
+    : `<p class="note" style="margin:0">Nothing claimed, nothing to check.</p>`;
+}
+document.getElementById('claimToggles').onchange = runCrossCheck;
+
+/* ------------------------------------------------------------- boot */
+drawChart();
+showDetail(2);          // crack: the class the evaluation section is really about
+updateSev();
+runCrossCheck();
+</script>
+
+</body>
+</html>
