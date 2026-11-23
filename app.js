@@ -205,6 +205,27 @@ function draw(img, lb, damage, vehicles) {
     cx.fillStyle = '#fff';
     cx.fillText(label, b.x1 + 5 * scale, ly + 2 * scale);
   }
+  revealMasks(c, img);
+}
+
+// Sweep the finished overlay across the photo so the masks appear to be traced
+// onto it. Cosmetic only: the detection has already finished.
+function revealMasks(c, img) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const w = c.width, h = c.height, cx = c.getContext('2d');
+  const final = document.createElement('canvas'); final.width = w; final.height = h;
+  final.getContext('2d').drawImage(c, 0, 0);
+  const t0 = performance.now(), dur = 1300;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e8a33d';
+  (function step(now) {
+    const k = Math.min(1, (now - t0) / dur), p = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    cx.clearRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
+    cx.save(); cx.beginPath(); cx.rect(0, 0, w * p, h); cx.clip(); cx.drawImage(final, 0, 0); cx.restore();
+    if (k < 1) {
+      cx.fillStyle = accent; cx.globalAlpha = .9; cx.fillRect(w * p - 1.5, 0, 3, h); cx.globalAlpha = 1;
+      requestAnimationFrame(step);
+    }
+  })(t0);
 }
 
 function renderDetections(damage, lb, car) {
@@ -356,3 +377,31 @@ $('download').onclick = () => {
   a.click();
   URL.revokeObjectURL(a.href);
 };
+
+// ------------------------------------------------- local-only sample photos
+// local-photos/ is gitignored (dataset licence). When it exists on this
+// machine, offer the photos as one-click samples; on the public site it
+// is absent and nothing appears.
+(async () => {
+  let list = [];
+  try {
+    const r = await fetch('local-photos/manifest.json', { cache: 'no-store' });
+    if (r.ok) list = (await r.json()).photos || [];
+  } catch { return; }
+  const box = $('samples');
+  if (!list.length || !box) return;
+  const row = box.querySelector('.thumbs');
+  for (const name of list) {
+    const b = document.createElement('button');
+    b.className = 'thumb'; b.title = name;
+    b.innerHTML = `<img src="local-photos/${name}" alt="">`;
+    b.onclick = () => {
+      if ($('file').disabled) return;
+      const img = new Image();
+      img.onload = () => run(img, name);
+      img.src = `local-photos/${name}`;
+    };
+    row.appendChild(b);
+  }
+  box.classList.remove('hide');
+})();

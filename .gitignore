@@ -1,2 +1,4 @@
 .DS_Store
 *.log
+# CarDD licence forbids redistribution: keep dataset photos local
+local-photos/

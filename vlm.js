@@ -1,4 +1,4 @@
-// SmolVLM-256M-Instruct through Transformers.js, asked for a fixed JSON shape.
+// SmolVLM-256M-Instruct through Transformers.js, asked three short questions.
 // WebGPU when the browser has it, wasm (CPU) otherwise, as the brief requires.
 //
 // The model is deliberately small and will get things wrong — that is the point.
@@ -10,13 +10,18 @@ import {
 
 export const MODEL_ID = 'HuggingFaceTB/SmolVLM-256M-Instruct';
 
-const PROMPT = `You are inspecting a photograph of a damaged car for an insurance claim.
-Reply with JSON only, no other words, in exactly this shape:
-{"damages":[{"type":"","location":"","severity":""}],"summary":""}
-"type" must be one of: dent, scratch, crack, glass shatter, lamp broken, tire flat.
-"location" is the part of the car, for example "front bumper" or "driver door".
-"severity" must be one of: minor, moderate, severe.
-List only damage you can actually see. If you see none, return an empty damages list.`;
+// Three short questions instead of one long JSON prompt. A 256M model given the
+// JSON template tends to echo it back empty (0 of 50 usable in the evaluation),
+// so each question is answered in isolation and the JSON is assembled in code,
+// not written by the model.
+const QUESTIONS = [
+  { key: 'type', maxTokens: 8,
+    text: 'What kind of damage is visible on this car? Answer with one of: dent, scratch, crack, glass shatter, lamp broken, tire flat, none.' },
+  { key: 'location', maxTokens: 10,
+    text: 'Which part of the car is damaged? Answer in two or three words, for example "front bumper".' },
+  { key: 'severity', maxTokens: 4,
+    text: 'How severe is the damage? Answer with one word: minor, moderate or severe.' },
+];
 
 let loading = null;
 let backend = null;
@@ -85,35 +90,61 @@ export function extractJson(text) {
   try { return JSON.parse(tail); } catch { return null; }
 }
 
-/**
- * Describe one image.
- * Returns { json, raw, ms } — json is null when the output could not be parsed,
- * which the caller should surface rather than hide.
- */
-export async function describe(imgEl, { maxNewTokens = 160 } = {}) {
-  const { processor, model } = await load();
-  const t0 = performance.now();
-
-  const image = await RawImage.fromURL(imgEl.src);
+async function ask(processor, model, image, question, maxNewTokens) {
   const messages = [{
     role: 'user',
-    content: [{ type: 'image' }, { type: 'text', text: PROMPT }],
+    content: [{ type: 'image' }, { type: 'text', text: question }],
   }];
   const text = processor.apply_chat_template(messages, { add_generation_prompt: true });
   const inputs = await processor(text, [image], { do_image_splitting: false });
-
   const generated = await model.generate({
     ...inputs,
     max_new_tokens: maxNewTokens,
     do_sample: false,            // greedy: reproducible, which the eval needs
   });
-
   const promptLen = inputs.input_ids.dims.at(-1);
   const decoded = processor.batch_decode(
     generated.slice(null, [promptLen, null]),
     { skip_special_tokens: true },
   );
-  const raw = (decoded[0] ?? '').trim();
+  return (decoded[0] ?? '').trim();
+}
 
-  return { json: extractJson(raw), raw, ms: performance.now() - t0 };
+// Build the JSON the cross-check expects from the three answers.
+export function assemble(answers) {
+  const type = (answers.type || '').trim().toLowerCase().replace(/[."']/g, '');
+  if (!type || /^(none|no|nothing)\b/.test(type)) return { damages: [], summary: '' };
+  return {
+    damages: [{
+      type,
+      location: (answers.location || '').trim().replace(/[."']/g, ''),
+      severity: (answers.severity || '').trim().toLowerCase().replace(/[."']/g, ''),
+    }],
+    summary: '',
+  };
+}
+
+/**
+ * Describe one image with three isolated questions.
+ * Returns { json, raw, ms, mode } — json is null only if the model gave no
+ * answer at all, which the caller should surface rather than hide.
+ */
+export async function describe(imgEl) {
+  const { processor, model } = await load();
+  const t0 = performance.now();
+  const image = await RawImage.fromURL(imgEl.src);
+
+  const answers = {};
+  for (const q of QUESTIONS) {
+    answers[q.key] = await ask(processor, model, image, q.text, q.maxTokens);
+  }
+  const raw = QUESTIONS.map(q => `${q.key}: ${answers[q.key] || '(empty)'}`).join('\n');
+  const anyAnswer = Object.values(answers).some(a => a && a.trim());
+
+  return {
+    json: anyAnswer ? assemble(answers) : null,
+    raw,
+    ms: performance.now() - t0,
+    mode: 'three-question',
+  };
 }

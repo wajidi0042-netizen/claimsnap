@@ -286,6 +286,25 @@ tr.tot td{border-bottom:0;border-top:1px solid var(--line2);font-weight:600}
     <span class="n">segmentation, CPU, measured on deployment</span></div>
 </section>
 
+<section class="panel" style="margin-bottom:16px">
+  <div class="head"><h2>Baseline: zero-shot vs fine-tuned</h2><span class="lbl">80 test photos &middot; 177 damages</span></div>
+  <table>
+    <thead><tr><th></th><th>YOLO-World + MobileSAM<br><span style="color:var(--faint);font-weight:400">no fine-tuning</span></th><th>YOLO11n-seg<br><span style="color:var(--faint);font-weight:400">fine-tuned on CarDD</span></th></tr></thead>
+    <tbody>
+      <tr><td>Recall, mask IoU &ge; 0.5</td><td class="m">5.6%</td><td class="m">61.6%</td></tr>
+      <tr><td>Recall, ignoring the class label</td><td class="m">9.6%</td><td class="m">&mdash;</td></tr>
+      <tr><td>Mean mask IoU of masks found</td><td class="m">0.805</td><td class="m">0.790</td></tr>
+      <tr><td>Boxes proposed</td><td class="m">126</td><td class="m">169</td></tr>
+      <tr><td>CarDD masks used in training</td><td class="m">0</td><td class="m">6,211</td></tr>
+    </tbody>
+  </table>
+  <p class="src" style="margin:12px 0 0">Zero-shot recall was measured with the confidence floor lowered to 0.05 to get any recall at all,
+    so quote recall together with the proposal count. The zero-shot masks are cleaner where it does find
+    something; it just finds little. It does better on hard-edged, nameable classes (glass shatter, lamp broken,
+    tire flat) than on dent, scratch and crack, which is the same split as the per-class results above.
+    Conclusion: useful as a pre-labelling aid for the nameable classes, not a deployable detector here.</p>
+</section>
+
 <p class="src">Source: <span class="m">yolo val task=segment split=test</span>, Ultralytics 8.4.215,
   YOLO11n-seg fine-tuned 50 epochs at 640 px, batch 16, on a Tesla T4. Overall box mAP50 0.743 ·
   box mAP50-95 0.584 · mask precision 0.770 · mask recall 0.682. Severity agreement and hallucination
