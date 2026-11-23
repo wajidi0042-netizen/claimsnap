@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClaimSnap - Car-Damage Triage for Motor Claims</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script src="ort.wasm.min.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- 1 ---------------------------------------------------------- -->
+<section class="slide glow">
+  <div class="fill col center">
+    <p class="eyebrow">MAIB AI 221 &middot; FINAL PROJECT &middot; INSURANCE</p>
+    <h1>ClaimSnap</h1>
+    <p class="sub" style="margin-top:1.4rem;font-size:1.35rem;max-width:40ch;">Car-damage triage that runs inside the adjuster&rsquo;s browser.</p>
+  </div>
+  <div class="row" style="align-items:flex-end">
+    <div class="grow"><p class="tiny">Shaik Wajid Ali &middot; AM25DXB013 &middot; S P Jain, Dubai</p></div>
+    <p class="tiny">YOLO11n-seg &middot; CarDD &middot; ONNX Runtime Web</p>
+  </div>
+</section>
+
+<!-- 2 ---------------------------------------------------------- -->
+<section class="slide">
+  <p class="eyebrow">THE PROBLEM</p>
+  <div class="fill col center">
+    <h2 style="max-width:18ch">A folder of photos.<br>Nobody has looked at it yet.</h2>
+    <p class="sub" style="margin-top:1.6rem">Every motor claim starts this way. A handler opens it and answers the same three questions by eye.</p>
+    <div class="rules" style="margin-top:2.4rem;max-width:40ch">
+      <div class="rule"><span class="rn">01</span><span class="rt">What is damaged?</span></div>
+      <div class="rule"><span class="rn">02</span><span class="rt">How bad is it?</span></div>
+      <div class="rule"><span class="rn">03</span><span class="rt">What goes in the file?</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ---------------------------------------------------------- -->
+<section class="slide">
+  <p class="eyebrow">THE APP</p>
+  <h2 style="max-width:22ch">Answer all three in one browser tab</h2>
+  <div class="fill col center">
+    <div class="feat">
+      <div class="f on"><div class="fn">01</div><div class="ft">Outline</div><div class="fd">Pixel masks for six damage types, each with a confidence score.</div></div>
+      <div class="f on"><div class="fn">02</div><div class="ft">Grade</div><div class="fd">Severity from damaged area as a share of the car.</div></div>
+      <div class="f on"><div class="fn">03</div><div class="ft">Describe</div><div class="fd">A vision-language model drafts it; the masks check every claim.</div></div>
+      <div class="f on"><div class="fn">04</div><div class="ft">Hand over</div><div class="fd">One summary an adjuster reads, corrects and files.</div></div>
+    </div>
+  </div>
+  <p class="tiny"><span class="accent">&#9632;</span> built and measured &nbsp;&nbsp; <span class="amb">&#9632;</span> designed, not yet built</p>
+</section>
+
+<!-- 4 ---------------------------------------------------------- -->
+<section class="slide">
+  <p class="eyebrow">THE DATA</p>
+  <div class="row mid fill" style="gap:4rem">
+    <div class="grow">
+      <h2>CarDD</h2>
+      <p class="sub" style="margin-top:1rem">Licensed from the Chinese Academy of Sciences. Academic use, no redistribution &mdash; so none of it ships in the repo.</p>
+      <div class="kpis" style="margin-top:2.4rem">
+        <div><div class="kpi">4,000</div><div class="kpi-l">photographs</div></div>
+        <div><div class="kpi">8,740</div><div class="kpi-l">damage masks</div></div>
+        <div><div class="kpi">374</div><div class="kpi-l">held back for testing</div></div>
+      </div>
+    </div>
+    <div style="width:38%;min-width:280px">
+      <p class="tiny" style="margin-bottom:.9rem">SIX CLASSES &middot; TEST-SET INSTANCES</p>
+      <div class="chips" style="flex-direction:column;align-items:flex-start">
+        <div class="chip"><span class="dot" style="background:rgb(255,140,0)"></span><span class="chipn">236</span><span class="chipl">dent</span></div>
+        <div class="chip"><span class="dot" style="background:rgb(255,215,0)"></span><span class="chipn">307</span><span class="chipl">scratch</span></div>
+        <div class="chip"><span class="dot" style="background:rgb(220,20,60)"></span><span class="chipn">70</span><span class="chipl">crack</span></div>
+        <div class="chip"><span class="dot" style="background:rgb(30,144,255)"></span><span class="chipn">71</span><span class="chipl">glass shatter</span></div>
+        <div class="chip"><span class="dot" style="background:rgb(148,0,211)"></span><span class="chipn">69</span><span class="chipl">lamp broken</span></div>
+        <div class="chip"><span class="dot" style="background:rgb(0,200,120)"></span><span class="chipn">32</span><span class="chipl">tire flat</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ---------------------------------------------------------- -->
+<section class="slide" id="s-train">
+  <div class="row" style="align-items:baseline">
+    <div class="grow">
+      <p class="eyebrow">TRAINING</p>
+      <h2>50 epochs, 1 hour 25 minutes, free tier</h2>
+    </div>
+    <div class="kpis">
+      <div><div class="kpi">2.85 M</div><div class="kpi-l">parameters</div></div>
+      <div><div class="kpi">555/561</div><div class="kpi-l">weights reused</div></div>
+    </div>
+  </div>
+  <div id="chartWrap" style="margin-top:1.6rem">
+    <svg id="chart" viewBox="0 0 1000 420" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="legend">
+    <span><i class="swl" style="background:#4F8CFF"></i> mask mAP@0.5 (validation)</span>
+    <span><i class="swl" style="background:#FFB649"></i> training loss</span>
+    <span><i class="swl" style="background:#7E8CA6"></i> validation loss</span>
+  </div>
+</section>
+
+<!-- 6 ---------------------------------------------------------- -->
+<section class="slide glow">
+  <p class="eyebrow">RESULT &middot; 374 UNSEEN PHOTOS</p>
+  <div class="fill col center">
+    <div class="display">0.734</div>
+    <p class="sub" style="margin-top:1.2rem;font-size:1.25rem">mask mAP@0.5 on the held-out test set</p>
+    <div class="kpis" style="margin-top:3rem">
+      <div><div class="kpi">0.770</div><div class="kpi-l">precision &mdash; when it speaks</div></div>
+      <div><div class="kpi a">0.682</div><div class="kpi-l">recall &mdash; of what is there</div></div>
+      <div><div class="kpi">0.724</div><div class="kpi-l">validation, for comparison</div></div>
+    </div>
+  </div>
+  <p class="tiny">Test beat validation, so the model generalised rather than memorised.</p>
+</section>
+
+<!-- 7 ---------------------------------------------------------- -->
+<section class="slide" id="s-perclass">
+  <p class="eyebrow">BY DAMAGE TYPE</p>
+  <h2 style="max-width:24ch">One average hiding two different models</h2>
+  <div class="fill col center">
+    <div class="bars">
+      <div class="bar-row"><div class="bar-name">Glass shatter</div><div class="bar-track"><div class="bar-fill" data-w="99.1"></div></div><div class="bar-val">0.991</div></div>
+      <div class="bar-row"><div class="bar-name">Flat tyre</div><div class="bar-track"><div class="bar-fill" data-w="89.5"></div></div><div class="bar-val">0.895</div></div>
+      <div class="bar-row"><div class="bar-name">Broken lamp</div><div class="bar-track"><div class="bar-fill" data-w="85.1"></div></div><div class="bar-val">0.851</div></div>
+      <div class="bar-row"><div class="bar-name">Dent</div><div class="bar-track"><div class="bar-fill weak" data-w="63.8"></div></div><div class="bar-val">0.638</div></div>
+      <div class="bar-row"><div class="bar-name">Scratch</div><div class="bar-track"><div class="bar-fill weak" data-w="59.2"></div></div><div class="bar-val">0.592</div></div>
+      <div class="bar-row"><div class="bar-name">Crack</div><div class="bar-track"><div class="bar-fill weak" data-w="43.8"></div></div><div class="bar-val">0.438</div></div>
+    </div>
+  </div>
+  <p class="sub" style="max-width:62ch">Dramatic damage is nearly solved. Thin surface damage is not &mdash; and it is the commonest motor claim there is.</p>
+</section>
+
+<!-- 8 ---------------------------------------------------------- -->
+<section class="slide warm" id="s-cm">
+  <div class="row" style="align-items:baseline">
+    <div class="grow">
+      <p class="eyebrow a">ERROR ANALYSIS</p>
+      <h2 style="max-width:20ch">It invents scratches that aren&rsquo;t there</h2>
+    </div>
+  </div>
+  <div class="row fill mid" style="gap:3rem;margin-top:1rem">
+    <div class="grow" id="cmHost"></div>
+    <div style="width:33%;min-width:260px" class="col">
+      <div><div class="kpi a">43%</div><div class="kpi-l">of false alarms are &ldquo;scratch&rdquo;</div></div>
+      <div style="margin-top:.6rem"><div class="kpi a">34%</div><div class="kpi-l">are &ldquo;dent&rdquo;</div></div>
+      <p class="sub" style="margin-top:1.6rem;font-size:.95rem">Between damage types it is clean. Against plain bodywork it is not &mdash; reflections, panel gaps and dirt all read as surface damage.</p>
+    </div>
+  </div>
+  <p class="tiny">Rows predicted, columns true. Normalised, test set, threshold 0.25.</p>
+</section>
+
+<!-- 9 ------------------------- LIVE ---------------------------- -->
+<section class="slide" id="s-live">
+  <div class="row" style="align-items:baseline;gap:1rem">
+    <div class="grow">
+      <p class="eyebrow">LIVE &middot; RUNNING IN THIS PAGE</p>
+      <h2 style="font-size:clamp(1.5rem,2.8vw,2.3rem);margin-bottom:.9rem">Photograph to adjuster summary</h2>
+    </div>
+    <div class="ctrl">
+      <span class="spin" id="spin"></span>
+      <span id="status">Loading model&hellip;</span>
+      <button class="btn ghost" id="btnReset">Reset</button>
+      <button class="btn" id="btnNext" disabled>Next stage &darr;</button>
+    </div>
+  </div>
+  <div class="stage-wrap">
+    <div class="stage-view">
+      <label class="drop" id="drop">
+        <div class="ic">&#128247;</div>
+        <b>Drop a car photo here</b>
+        <p>nothing is uploaded &mdash; the model runs on this machine</p>
+        <input type="file" id="file" accept="image/*" disabled>
+      </label>
+      <canvas id="stageCanvas"></canvas>
+    </div>
+    <div class="stage-side">
+      <div class="steps" id="steps">
+        <div class="step" data-s="1"><div class="n">1</div><div><div class="st">Photograph</div><div class="sd" id="t1">As the claimant sent it.</div></div></div>
+        <div class="step" data-s="2"><div class="n">2</div><div><div class="st">Letterbox 640</div><div class="sd" id="t2">Padded exactly as in training.</div></div></div>
+        <div class="step" data-s="3"><div class="n">3</div><div><div class="st">Raw candidates</div><div class="sd" id="t3">8,400 boxes proposed, most of them noise.</div></div></div>
+        <div class="step" data-s="4"><div class="n">4</div><div><div class="st">Threshold + NMS</div><div class="sd" id="t4">Cut below 25%, then drop duplicates.</div></div></div>
+        <div class="step" data-s="5"><div class="n">5</div><div><div class="st">Decode masks</div><div class="sd" id="t5">32 prototype patterns mixed into each shape.</div></div></div>
+        <div class="step" data-s="6"><div class="n">6</div><div><div class="st">Summary</div><div class="sd" id="t6">Severity by area, for a human to correct.</div></div></div>
+      </div>
+      <div class="rescard" id="resultCard" style="display:none">
+        <table><thead><tr><th>Type</th><th>Conf.</th><th>Area</th><th>Severity</th></tr></thead><tbody id="tbody"></tbody></table>
+        <div class="sev-lab"><span>Overall</span><span id="sevText">&ndash;</span></div>
+        <div class="sev-bar"><div class="sev-fill" id="sevFill"></div></div>
+      </div>
+      <p class="tiny" id="timing"></p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 --------------------------------------------------------- -->
+<section class="slide">
+  <p class="eyebrow">THE DESIGN THAT FOLLOWS</p>
+  <div class="fill col center">
+    <h2 style="max-width:22ch">Weakest where claims are commonest.<br>So it never decides.</h2>
+    <div class="rules" style="margin-top:2.6rem;max-width:52ch">
+      <div class="rule"><span class="rn">01</span><span class="rt">No claim is approved or denied by the app.</span></div>
+      <div class="rule"><span class="rn">02</span><span class="rt">Surface damage routes to an adjuster by default.</span></div>
+      <div class="rule"><span class="rn">03</span><span class="rt">Unsupported statements are flagged, not printed.</span></div>
+      <div class="rule"><span class="rn">04</span><span class="rt">The corrected version is what enters the file.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 --------------------------------------------------------- -->
+<section class="slide">
+  <p class="eyebrow">RESPONSIBLE AI</p>
+  <h2 style="max-width:24ch">Four commitments, each with a mechanism</h2>
+  <div class="fill col center">
+    <div class="feat">
+      <div class="f on"><div class="ft">No decision</div><div class="fd">Evidence for a person, never a figure or an outcome.</div></div>
+      <div class="f on"><div class="ft">Photos stay put</div><div class="fd">No upload endpoint, no server, nothing in transit.</div></div>
+      <div class="f on"><div class="ft">Limits stated</div><div class="fd">The model card carries crack at 0.44, not just the headline.</div></div>
+      <div class="f on"><div class="ft">Licence kept</div><div class="fd">No CarDD imagery in the repo, the app or this deck.</div></div>
+    </div>
+  </div>
+  <p class="sub" style="max-width:68ch">Outstanding: a bias check across vehicles, lighting and photo quality &mdash; and fraud, which this model does not detect at all.</p>
+</section>
+
+<!-- 12 --------------------------------------------------------- -->
+<section class="slide warm">
+  <p class="eyebrow a">STILL TO BUILD</p>
+  <h2 style="max-width:20ch">Still to measure</h2>
+  <div class="row fill mid" style="gap:3rem">
+    <div class="grow">
+      <div class="feat" style="flex-direction:column;gap:1.6rem">
+        <div class="f soon"><div class="fn">NEXT</div><div class="ft">Hallucination rate</div><div class="fd">The description is built and cross-checked. Next: count how many statements are removed across 50 photos.</div></div>
+        <div class="f soon"><div class="fn">NEXT</div><div class="ft">Live deployment</div><div class="fd">GitHub Pages or a Hugging Face Static Space, reachable until grades are released.</div></div>
+      </div>
+    </div>
+    <div style="width:40%;min-width:280px">
+      <p class="tiny" style="margin-bottom:1rem">AND</p>
+      <div class="rules">
+        <div class="rule"><span class="rn">&mdash;</span><span class="rt" style="font-size:1rem">Calibrate severity cut-offs on 50 rated photos</span></div>
+        <div class="rule"><span class="rn">&mdash;</span><span class="rt" style="font-size:1rem">Baseline: open-vocabulary + SAM</span></div>
+        <div class="rule"><span class="rn">&mdash;</span><span class="rt" style="font-size:1rem">Multi-photo upload</span></div>
+        <div class="rule"><span class="rn">&mdash;</span><span class="rt" style="font-size:1rem">Model card, report, video, repo</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 --------------------------------------------------------- -->
+<section class="slide glow">
+  <div class="fill col center">
+    <h1 style="font-size:clamp(2.4rem,6vw,5rem)">Thank you</h1>
+    <p class="sub" style="margin-top:1.4rem;font-size:1.2rem">Questions</p>
+  </div>
+  <div class="row" style="align-items:flex-end">
+    <div class="grow">
+      <p class="tiny">Wang, Li &amp; Wu (2023), <i>IEEE T-ITS</i> 24(7) &middot; Ultralytics YOLO11, AGPL-3.0 &middot; ONNX Runtime Web &middot; Google Colab free tier</p>
+    </div>
+    <p class="tiny">Shaik Wajid Ali &middot; AM25DXB013</p>
+  </div>
+</section>
+
+</div>
+
+<div id="bar"></div>
+<div id="hint">&larr; &rarr; slides &middot; &darr; stage &middot; N notes &middot; F full screen</div>
+<div id="nav">
+  <span id="count">1 / 13</span>
+  <button id="prev" title="Previous">&larr;</button>
+  <button id="next" title="Next">&rarr;</button>
+  <button id="full" title="Full screen">&#9974;</button>
+</div>
+<div id="notes"><h4>SPEAKER NOTES</h4><p id="notesText"></p></div>
+
+<script src="app.js"></script>
+</body>
+</html>

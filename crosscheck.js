@@ -138,9 +138,18 @@ export function supportedOnly(claimed, result) {
       .filter(s => s.kind === 'type' && !s.supported)
       .map(s => s.type),
   );
-  const damages = (claimed?.damages || []).filter(c => {
-    const t = normaliseType(c?.type);
-    return t && !bad.has(t);
-  });
+  const badSev = new Set(
+    result.statements
+      .filter(s => s.kind === 'severity' && !s.supported)
+      .map(s => s.type),
+  );
+  const damages = (claimed?.damages || [])
+    .filter(c => {
+      const t = normaliseType(c?.type);
+      return t && !bad.has(t);
+    })
+    // A severity the measurement contradicts is dropped, not repeated: the
+    // adjuster summary shows the measured severity from the detections instead.
+    .map(c => (badSev.has(normaliseType(c?.type)) ? { ...c, severity: undefined } : c));
   return { ...claimed, damages };
 }

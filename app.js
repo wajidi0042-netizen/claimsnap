@@ -105,7 +105,7 @@ async function run(img, filename) {
     timing_ms: { segmentation: Math.round(segMs) },
   };
 
-  if (!$('useVlm').checked) { renderSummary(); return; }
+  if (!$('useVlm').checked) { renderSummary(); say(`Done in ${(segMs / 1000).toFixed(1)} s — detections and summary below.`); return; }
 
   // ------------------------------------------------------------ description
   say('Loading the vision-language model (first run downloads it)…');
@@ -145,7 +145,8 @@ async function run(img, filename) {
     statements: checked.statements,
     unmentioned_detections: checked.missed,
     hallucination_rate_before: +checked.counts.hallucinationRate.toFixed(3),
-    hallucination_rate_after: 0,
+    statements_removed: checked.counts.unsupported,
+    statements_total: checked.counts.total,
   };
   renderSummary();
   say(`Done in ${((segMs + vlm.ms) / 1000).toFixed(1)} s on ${lastReport.vlm_backend ?? 'cpu'}.`);
@@ -249,7 +250,7 @@ function renderClaims(json, checked) {
     `<span>Statements <b>${total}</b></span>` +
     `<span>Flagged <b>${unsupported}</b></span>` +
     `<span>Hallucination rate before cross-checking <b>${pct(hallucinationRate)}</b></span>` +
-    `<span>After <b>0%</b></span>`;
+    `<span>Removed <b>${unsupported}</b> of ${total} (0% remain by construction)</span>`;
   $('vlmPanel').classList.remove('hide');
 }
 
@@ -275,7 +276,7 @@ function renderSummary() {
     lines.push('', 'Draft description (model-written, cross-checked):');
     const kept = d.after_cross_check.damages || [];
     lines.push(...(kept.length
-      ? kept.map(c => `  · ${c.type}${c.location ? ` on the ${c.location}` : ''}${c.severity ? ` — ${c.severity}` : ''}`)
+      ? kept.map(c => `  · ${c.type}${c.location ? ` on the ${c.location} (location unverified)` : ''}${c.severity ? ` — ${c.severity}` : ''}`)
       : ['  · nothing the segmentation output supports']));
     const flagged = d.statements.filter(s => !s.supported);
     if (flagged.length) {
@@ -285,7 +286,7 @@ function renderSummary() {
     if (d.unmentioned_detections.length) {
       lines.push('', `Not mentioned by the model but detected: ${d.unmentioned_detections.join(', ')}`);
     }
-    lines.push('', `Hallucination rate: ${pct(d.hallucination_rate_before)} before cross-checking, 0% after.`);
+    lines.push('', `Hallucination rate: ${pct(d.hallucination_rate_before)} before cross-checking; ${d.statements_removed} of ${d.statements_total} statements removed. Measured severity above is authoritative.`);
   }
 
   lines.push('',

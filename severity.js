@@ -7,7 +7,7 @@
 
 // Share-of-car thresholds. Starting points only — tune them against the
 // 50-image manual rating study (see the notebook) before quoting agreement.
-export const THRESHOLDS = { minor: 0.02, moderate: 0.10 };
+export const THRESHOLDS = { minor: 0.10, moderate: 0.35 };
 
 export const LEVELS = ['minor', 'moderate', 'severe'];
 

@@ -8,6 +8,7 @@
     { href: 'new-claim.html', label: 'New Claim' },
     { href: 'queue.html', label: 'Claims Queue' },
     { href: 'dashboard.html', label: 'Performance' },
+    { href: 'presentation/index.html', label: 'Presentation' },
   ];
 
   const css = `
